@@ -10,16 +10,16 @@ This document outlines the step-by-step implementation plan for the Weather Noti
 
 ## Implementation Steps
 
-### 0. **Project Setup**
-- Initialize a new Spring Boot 3 project using Java 21.
-- Add dependencies for AWS Lambda, Spring Web, and any required libraries for REST API development.
-- Configure the project structure and version control (e.g., Git).
+### 0. **Project Setup** (Done)
+- Initialize a new Spring Boot 3 project using Java 21. **[Completed]**
+- Add dependencies for AWS Lambda, Spring Web, and any required libraries for REST API development. **[Completed]**
+- Configure the project structure and version control (e.g., Git). **[Completed]**
 
-### 1. **Weather API Integration**
-- Research and select a third-party weather API (e.g., OpenWeatherMap).
-- Implement a service to fetch current weather data.
-- Implement a service to fetch weather predictions for the next 5 hours.
-- Write unit tests for the weather services.
+### 1. **Weather API Integration** (Done)
+- Research and select a third-party weather API (e.g., OpenWeatherMap). **[Completed]**
+- Implement a service to fetch current weather data. **[Completed]**
+- Implement a service to fetch weather predictions for the next 5 hours. **[Completed]**
+- Write unit tests for the weather services. **[Completed]**
 
 ### 2. **REST API Development**
 - Create controllers for the following endpoints:
