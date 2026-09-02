@@ -10,6 +10,7 @@ This document outlines the coding standards and best practices for the Weather N
 1. **Code Style**:
    - Follow the Java Code Conventions.
    - Use consistent indentation (4 spaces per level).
+   - Use Lombok `@RequiredArgsConstructor` for constructor injection.
 
 2. **Naming Conventions**:
    - Use camelCase for variables and methods.
@@ -40,6 +41,7 @@ This document outlines the coding standards and best practices for the Weather N
 2. **Classes**:
    - Keep classes focused on a single responsibility.
    - Avoid large classes with multiple responsibilities.
+   - Keep controller classes thin and move business logic into services.
 
 3. **Methods**:
    - Keep methods short and focused.
