@@ -13,7 +13,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: weather-notification-service
-      CodeUri: .
+      CodeUri: target/weather-lambda-0.0.1-SNAPSHOT-aws.jar
       Handler: com.ik.aws.lambda.StreamLambdaHandler::handleRequest
       Runtime: java17
       Architectures:
