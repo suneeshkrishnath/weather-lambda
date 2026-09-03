@@ -29,8 +29,14 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: Remove existing artifact from S3
+        run: |
+          ARTIFACT_KEY=weather-lambda-0.0.1-SNAPSHOT-aws.jar
+          aws s3 rm "s3://${{ secrets.S3_BUCKET_NAME }}/$ARTIFACT_KEY" --only-show-errors || true
+
       - name: Upload Artifact To S3
         run: |
+          ARTIFACT_KEY=weather-lambda-0.0.1-SNAPSHOT-aws.jar
           aws s3 cp \
           target/weather-lambda-0.0.1-SNAPSHOT-aws.jar \
-          s3://${{ secrets.S3_BUCKET_NAME }}/weather-lambda-0.0.1-SNAPSHOT-aws.jar
+          "s3://${{ secrets.S3_BUCKET_NAME }}/$ARTIFACT_KEY"
