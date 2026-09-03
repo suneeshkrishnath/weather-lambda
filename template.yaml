@@ -1,0 +1,28 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Weather Notification Service on AWS Lambda and API Gateway
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: java17
+
+Resources:
+  WeatherLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: weather-notification-service
+      CodeUri: .
+      Handler: com.ik.aws.lambda.StreamLambdaHandler::handleRequest
+      Runtime: java17
+      Architectures:
+        - x86_64
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+      Policies:
+        - AWSLambdaBasicExecutionRole

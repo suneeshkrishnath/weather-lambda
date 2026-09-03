@@ -36,15 +36,16 @@ This document outlines the step-by-step implementation plan for the Weather Noti
 - Write unit tests for the workout suggestion logic.
 **[Completed]**
 
-### 4. **Lambda Packaging and Deployment Artifact**
-- Package the Spring Boot application as a Lambda function.
-- Prepare the deployable artifact and runtime configuration.
+### 4. **Lambda-ready Application and Deployment Artifact**
+- Add a real Lambda entrypoint for API Gateway events.
+- Package the Spring Boot application as a deployable Lambda artifact.
+- Prepare SAM deployment configuration for the serverless runtime.
 **[Completed]**
 
 ### 5. **AWS Platform Deployment**
 - Configure AWS API Gateway to expose the REST API.
 - Set up IAM roles and permissions for Lambda.
-- Deploy the application to AWS Lambda.
+- Deploy the application to AWS Lambda using the SAM template.
 
 ### 6. **Monitoring and Logging**
 - Integrate AWS CloudWatch for logging and monitoring.
