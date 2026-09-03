@@ -11,6 +11,7 @@ This document outlines the coding standards and best practices for the Weather N
    - Follow the Java Code Conventions.
    - Use consistent indentation (4 spaces per level).
    - Use Lombok `@RequiredArgsConstructor` for constructor injection.
+   - Use Lombok `@Slf4j` for application logging and keep logger statements for both informational and error paths.
 
 2. **Naming Conventions**:
    - Use camelCase for variables and methods.
@@ -23,7 +24,8 @@ This document outlines the coding standards and best practices for the Weather N
 
 4. **Error Handling**:
    - Use custom exceptions for domain-specific errors.
-   - Log errors using a logging framework (e.g., SLF4J).
+   - Use Lombok `@Slf4j` and log `INFO` for request and processing milestones, and `ERROR` for exceptions, validation failures, and critical service issues.
+   - Avoid logging sensitive request data; redact credentials, tokens, and personal identifiers.
    - Use appropriate HTTP status codes (e.g., 200 for success, 500 for server errors, 400 for bad requests).
 
 5. **POJO Creation**:

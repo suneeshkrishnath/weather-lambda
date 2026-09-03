@@ -2,20 +2,28 @@ package com.ik.aws.lambda.service;
 
 import com.ik.aws.lambda.dto.WeatherSnapshot;
 import com.ik.aws.lambda.dto.WorkoutSuggestionResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 public class WorkoutSuggestionService {
 
     public WorkoutSuggestionResponse suggest(String location, String activity, WeatherSnapshot weatherSnapshot) {
-        String normalized = activity.toLowerCase();
-        if (!"running".equals(normalized) && !"cycling".equals(normalized)) {
-            throw new IllegalArgumentException("activity must be running or cycling");
-        }
+        log.info("Evaluating workout suggestion for location={}, activity={}, snapshot={}", location, activity, weatherSnapshot);
+        try {
+            String normalized = activity.toLowerCase();
+            if (!"running".equals(normalized) && !"cycling".equals(normalized)) {
+                throw new IllegalArgumentException("activity must be running or cycling");
+            }
 
-        boolean feasible = isFeasibleForActivity(normalized, weatherSnapshot);
-        String recommendation = buildRecommendation(location, normalized, feasible, weatherSnapshot);
-        return new WorkoutSuggestionResponse(capitalize(normalized), recommendation, feasible);
+            boolean feasible = isFeasibleForActivity(normalized, weatherSnapshot);
+            String recommendation = buildRecommendation(location, normalized, feasible, weatherSnapshot);
+            return new WorkoutSuggestionResponse(capitalize(normalized), recommendation, feasible);
+        } catch (Exception e) {
+            log.error("Failed to generate workout suggestion for location={}, activity={}", location, activity, e);
+            throw e;
+        }
     }
 
     private boolean isFeasibleForActivity(String activity, WeatherSnapshot weatherSnapshot) {
