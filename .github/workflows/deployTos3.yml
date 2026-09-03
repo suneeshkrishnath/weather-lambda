@@ -32,5 +32,5 @@ jobs:
       - name: Upload Artifact To S3
         run: |
           aws s3 cp \
-          target/weather-lambda-0.0.1-SNAPSHOT-lambda.jar \
-          s3://${{ secrets.S3_BUCKET_NAME }}/weather-lambda-0.0.1-SNAPSHOT-lambda.jar
+          target/weather-lambda-0.0.1-SNAPSHOT-aws.jar \
+          s3://${{ secrets.S3_BUCKET_NAME }}/weather-lambda-0.0.1-SNAPSHOT-aws.jar
