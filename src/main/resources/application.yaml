@@ -1,3 +1,11 @@
+logging:
+  level:
+    root: INFO
+    org:
+      springframework:
+        web: DEBUG
+        web.servlet.mvc.method.annotation.RequestMappingHandlerMapping: TRACE
+
 spring:
   application:
     name: weather-lambda
