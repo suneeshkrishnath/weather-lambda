@@ -15,18 +15,20 @@ This document outlines the step-by-step implementation plan for the Weather Noti
 - Add dependencies for AWS Lambda, Spring Web, and any required libraries for REST API development. **[Completed]**
 - Configure the project structure and version control (e.g., Git). **[Completed]**
 
-### 1. **Weather API Integration** (Done)
-- Research and select a third-party weather API (e.g., OpenWeatherMap). **[Completed]**
-- Implement a service to fetch current weather data. **[Completed]**
-- Implement a service to fetch weather predictions for the next 5 hours. **[Completed]**
+### 1. **Weather Data Integration** (Done)
+- Research and define the weather response format for the demo and AWS environment. **[Completed]**
+- Implement a service to generate the current weather for a location, including actual demo values such as Wroclaw = 33°C and sunny. **[Completed]**
+- Implement a service to generate weather predictions for the next 5 hours using the same location-based logic. **[Completed]**
 - Write unit tests for the weather services. **[Completed]**
+- Keep the legacy lat/lon response format for backward compatibility while the preferred API accepts a location string. **[Completed]**
 
 ### 2. **REST API Development**
 - Create controllers for the following endpoints:
-  - `/api/weather/current`: Fetch current weather.
-  - `/api/weather/prediction`: Fetch weather predictions.
-  - `/api/workout/suggestion`: Provide workout suggestions.
+  - `/api/weather/current?location=Wroclaw`: Fetch the current weather for a city, returning values such as `33°C and sunny`.
+  - `/api/weather/prediction?location=Wroclaw`: Fetch a 5-hour forecast for a city.
+  - `/api/workout/suggestion?location=Berlin&activity=running`: Provide workout suggestions.
 - Implement request validation and error handling.
+- Keep the older lat/lon style endpoints as a compatibility path while the main demo API uses location-based weather responses.
 - Write integration tests for the REST API.
 **[Completed]**
 

@@ -1,5 +1,7 @@
 package com.ik.aws.lambda.controller;
 
+import com.ik.aws.lambda.dto.WeatherPredictionResponse;
+import com.ik.aws.lambda.dto.WeatherResponse;
 import com.ik.aws.lambda.service.WeatherService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +19,18 @@ public class WeatherController {
 
     private final WeatherService weatherService;
 
-    @GetMapping("/current")
+    @GetMapping(value = "/current", params = "location")
+    public ResponseEntity<WeatherResponse> current(@RequestParam String location) {
+        log.info("Received current weather request for location={}", location);
+        try {
+            return ResponseEntity.ok(weatherService.fetchCurrentWeather(location));
+        } catch (Exception e) {
+            log.error("Error while fetching current weather for location={}", location, e);
+            throw e;
+        }
+    }
+
+    @GetMapping(value = "/current", params = {"lat", "lon"})
     public ResponseEntity<String> current(@RequestParam double lat, @RequestParam double lon) {
         log.info("Received current weather request for lat={}, lon={}", lat, lon);
         try {
@@ -28,7 +41,18 @@ public class WeatherController {
         }
     }
 
-    @GetMapping("/prediction")
+    @GetMapping(value = "/prediction", params = "location")
+    public ResponseEntity<WeatherPredictionResponse> prediction(@RequestParam String location) {
+        log.info("Received weather prediction request for location={}", location);
+        try {
+            return ResponseEntity.ok(weatherService.fetchWeatherPrediction(location));
+        } catch (Exception e) {
+            log.error("Error while fetching weather prediction for location={}", location, e);
+            throw e;
+        }
+    }
+
+    @GetMapping(value = "/prediction", params = {"lat", "lon"})
     public ResponseEntity<String> prediction(@RequestParam double lat, @RequestParam double lon) {
         log.info("Received weather prediction request for lat={}, lon={}", lat, lon);
         try {
