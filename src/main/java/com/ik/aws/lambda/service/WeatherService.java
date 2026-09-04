@@ -3,29 +3,45 @@ package com.ik.aws.lambda.service;
 import com.ik.aws.lambda.dto.WeatherForecast;
 import com.ik.aws.lambda.dto.WeatherPredictionResponse;
 import com.ik.aws.lambda.dto.WeatherResponse;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
 
 @Slf4j
 @Service
 public class WeatherService {
 
-    @Value("${weather.api.key:demo-key}")
+    @Value("${weather.api.key:}")
     private String apiKey;
 
-    @Value("${weather.api.base-url:https://example.com/weather}")
+    @Value("${weather.api.base-url:https://api.openweathermap.org/data/2.5}")
     private String baseUrl;
+
+    private final RestClient restClient;
+
+    public WeatherService() {
+        this(RestClient.builder().build());
+    }
+
+    WeatherService(RestClient restClient) {
+        this.restClient = restClient;
+    }
 
     public String fetchCurrentWeather(double lat, double lon) {
         log.info("Preparing current weather request for lat={}, lon={}", lat, lon);
         try {
-            return baseUrl + "/current?lat=" + lat + "&lon=" + lon + "&appid=" + apiKey;
+            return buildLegacyCurrentWeatherUrl(lat, lon);
         } catch (Exception e) {
             log.error("Failed to prepare current weather request for lat={}, lon={}", lat, lon, e);
             throw e;
@@ -35,13 +51,24 @@ public class WeatherService {
     public WeatherResponse fetchCurrentWeather(String location) {
         String normalizedLocation = normalizeLocation(location);
         log.info("Preparing current weather for location={}", normalizedLocation);
-        return buildCurrentWeather(normalizedLocation);
+
+        Map<String, Object> response = fetchCurrentWeatherByCity(normalizedLocation);
+        Map<String, Object> main = asMap(response.get("main"));
+        double temperature = asDouble(main.get("temp"));
+        String condition = firstWeatherMain(response);
+
+        return new WeatherResponse(
+                normalizedLocation,
+                temperature,
+                condition,
+                String.format(Locale.ENGLISH, "%.0f°C and %s in %s.", temperature, condition.toLowerCase(Locale.ROOT), normalizedLocation)
+        );
     }
 
     public String fetchWeatherPrediction(double lat, double lon) {
         log.info("Preparing weather prediction request for lat={}, lon={}", lat, lon);
         try {
-            return baseUrl + "?lat=" + lat + "&lon=" + lon + "&appid=" + apiKey;
+            return buildLegacyPredictionUrl(lat, lon);
         } catch (Exception e) {
             log.error("Failed to prepare weather prediction request for lat={}, lon={}", lat, lon, e);
             throw e;
@@ -51,80 +78,183 @@ public class WeatherService {
     public WeatherPredictionResponse fetchWeatherPrediction(String location) {
         String normalizedLocation = normalizeLocation(location);
         log.info("Preparing weather prediction for location={}", normalizedLocation);
-        return buildPrediction(normalizedLocation);
-    }
 
-    private WeatherResponse buildCurrentWeather(String location) {
-        String city = normalizeLocation(location);
-        double temperatureCelsius = resolveTemperature(city);
-        String condition = resolveCondition(city, temperatureCelsius);
-        return new WeatherResponse(city, temperatureCelsius, condition,
-                String.format(Locale.ENGLISH, "%.0f°C and %s in %s.", temperatureCelsius, condition.toLowerCase(Locale.ROOT), city));
-    }
-
-    private String buildCurrentWeatherSummary(String location, double lat, double lon) {
-        WeatherResponse current = buildCurrentWeather(location + "(" + lat + "," + lon + ")");
-        return current.summary();
-    }
-
-    private WeatherPredictionResponse buildPrediction(String location) {
-        String city = normalizeLocation(location);
+        Map<String, Object> response = fetchForecastByCity(normalizedLocation);
+        List<Map<String, Object>> list = asList(response.get("list"));
         List<WeatherForecast> predictions = new ArrayList<>();
-        double baseTemperature = resolveTemperature(city);
-        String baseCondition = resolveCondition(city, baseTemperature);
-        for (int hour = 1; hour <= 5; hour++) {
-            double temperature = Math.round((baseTemperature + (hour - 2) * 2.0) * 10.0) / 10.0;
-            String condition = hour % 3 == 0 && baseCondition.equalsIgnoreCase("Sunny") ? "Cloudy" : hour % 2 == 0 ? "Rainy" : baseCondition;
-            String time = LocalDateTime.now().plusHours(hour).format(DateTimeFormatter.ofPattern("HH:mm"));
+
+        for (int i = 0; i < Math.min(5, list.size()); i++) {
+            Map<String, Object> entry = list.get(i);
+            long epochSeconds = asLong(entry.get("dt"));
+            Map<String, Object> main = asMap(entry.get("main"));
+            double temperature = asDouble(main.get("temp"));
+            String condition = firstWeatherMain(entry);
+            String time = LocalDateTime.ofInstant(Instant.ofEpochSecond(epochSeconds), ZoneId.systemDefault())
+                    .format(DateTimeFormatter.ofPattern("HH:mm"));
             predictions.add(new WeatherForecast(time, temperature, condition));
         }
-        return new WeatherPredictionResponse(city, predictions);
+
+        return new WeatherPredictionResponse(normalizedLocation, predictions);
     }
 
-    private String buildPredictionSummary(String location, double lat, double lon) {
-        WeatherPredictionResponse prediction = buildPrediction(location + "(" + lat + "," + lon + ")");
-        return prediction.predictions().toString();
+    private Map<String, Object> fetchCurrentWeatherByCity(String location) {
+        String url = buildCityWeatherUrl(location, true);
+        Map<String, Object> body = restClient.get().uri(url).retrieve().body(Map.class);
+        if (body == null || body.isEmpty()) {
+            throw new IllegalStateException("No weather data returned for location=" + location);
+        }
+        return body;
     }
 
-    private double resolveTemperature(String location) {
-        String normalized = normalizeLocation(location).toLowerCase(Locale.ROOT);
-        if (normalized.contains("wro")) {
-            return 33.0;
+    private Map<String, Object> fetchForecastByCity(String location) {
+        String url = buildCityForecastUrl(location, true);
+        Map<String, Object> body = restClient.get().uri(url).retrieve().body(Map.class);
+        if (body == null || body.isEmpty()) {
+            throw new IllegalStateException("No forecast data returned for location=" + location);
         }
-        if (normalized.contains("berlin")) {
-            return 24.0;
-        }
-        if (normalized.contains("london")) {
-            return 19.0;
-        }
-        if (normalized.contains("paris")) {
-            return 26.0;
-        }
-        int seed = normalized.chars().sum();
-        return 15.0 + (seed % 18);
+        return body;
     }
 
-    private String resolveCondition(String location, double temperature) {
-        String normalized = normalizeLocation(location).toLowerCase(Locale.ROOT);
-        if (normalized.contains("wro")) {
-            return "Sunny";
+    private Coordinates resolveCoordinates(String location) {
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalStateException("weather.api.key is not configured");
         }
-        if (temperature >= 30) {
-            return "Sunny";
+
+        String encodedLocation = URLEncoder.encode(location, StandardCharsets.UTF_8);
+        String geoUri = "https://api.openweathermap.org/geo/1.0/direct?q=" + encodedLocation + "&limit=1&appid=" + apiKey;
+        List<Map<String, Object>> locations = asList(restClient.get().uri(geoUri).retrieve().body(List.class));
+
+        if (locations == null || locations.isEmpty()) {
+            throw new IllegalArgumentException("Could not resolve location: " + location);
         }
-        if (temperature >= 20) {
-            return "Cloudy";
+
+        Map<String, Object> city = locations.get(0);
+        double lat = asDouble(city.get("lat"));
+        double lon = asDouble(city.get("lon"));
+        return new Coordinates(lat, lon);
+    }
+
+    private String buildLegacyCurrentWeatherUrl(double lat, double lon) {
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalStateException("weather.api.key is not configured");
         }
-        if (normalized.contains("berlin") || normalized.contains("london") || normalized.contains("paris")) {
-            return "Rainy";
+        String url = buildCoordinatesWeatherUrl(lat, lon, false);
+        return url.replace("?lat=" + lat + "&lon=" + lon, "/current?lat=" + lat + "&lon=" + lon);
+    }
+
+    private String buildLegacyPredictionUrl(double lat, double lon) {
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalStateException("weather.api.key is not configured");
         }
-        return "Cloudy";
+        return buildCoordinatesWeatherUrl(lat, lon, false);
+    }
+
+    private String buildCityWeatherUrl(String location, boolean includeMetric) {
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalStateException("weather.api.key is not configured");
+        }
+
+        String endpoint = buildEndpointBase("weather");
+        String encoded = URLEncoder.encode(location, StandardCharsets.UTF_8);
+        String url = endpoint + "?q=" + encoded;
+        if (includeMetric) {
+            url += "&units=metric";
+        }
+        url += "&appid=" + apiKey;
+        return url;
+    }
+
+    private String buildCityForecastUrl(String location, boolean includeMetric) {
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalStateException("weather.api.key is not configured");
+        }
+
+        String endpoint = buildEndpointBase("forecast");
+        String encoded = URLEncoder.encode(location, StandardCharsets.UTF_8);
+        String url = endpoint + "?q=" + encoded;
+        if (includeMetric) {
+            url += "&units=metric";
+        }
+        url += "&appid=" + apiKey;
+        return url;
+    }
+
+    private String buildCoordinatesWeatherUrl(double lat, double lon, boolean includeMetric) {
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalStateException("weather.api.key is not configured");
+        }
+
+        String endpoint = buildEndpointBase("weather");
+        String url = endpoint + "?lat=" + lat + "&lon=" + lon;
+        if (includeMetric) {
+            url += "&units=metric";
+        }
+        url += "&appid=" + apiKey;
+        return url;
+    }
+
+    private String buildEndpointBase(String endpointName) {
+        String endpoint = baseUrl == null || baseUrl.isBlank() ? "https://api.openweathermap.org/data/2.5" : baseUrl;
+        endpoint = endpoint.replaceAll("/+$", "");
+        if (endpoint.endsWith("/weather") || endpoint.endsWith("/forecast") || endpoint.endsWith("/onecall")) {
+            return endpoint.replaceAll("/(weather|forecast|onecall)$", "") + "/" + endpointName;
+        }
+        if (endpoint.contains("/data/2.5")) {
+            return endpoint + "/" + endpointName;
+        }
+        return endpoint + "/" + endpointName;
+    }
+
+    private String firstWeatherMain(Map<String, Object> payload) {
+        List<Map<String, Object>> weather = asList(payload.get("weather"));
+        if (weather == null || weather.isEmpty()) {
+            return "Unknown";
+        }
+        Object main = weather.get(0).get("main");
+        return main == null ? "Unknown" : String.valueOf(main);
     }
 
     private String normalizeLocation(String location) {
         if (location == null || location.isBlank()) {
-            return "Wroclaw";
+            throw new IllegalArgumentException("location must not be blank");
         }
         return location.trim();
+    }
+
+    private static Map<String, Object> asMap(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            return (Map<String, Object>) map;
+        }
+        return Map.of();
+    }
+
+    private static List<Map<String, Object>> asList(Object value) {
+        if (value instanceof List<?> list) {
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (Object item : list) {
+                if (item instanceof Map<?, ?> map) {
+                    result.add((Map<String, Object>) map);
+                }
+            }
+            return result;
+        }
+        return List.of();
+    }
+
+    private static double asDouble(Object value) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        return 0.0;
+    }
+
+    private static long asLong(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        return 0L;
+    }
+
+    private record Coordinates(double lat, double lon) {
     }
 }
